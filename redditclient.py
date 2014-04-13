@@ -5,11 +5,13 @@ import textwrap
 
 import praw
 
+
 class escape:
     reset = 0
     bold = 1
     underline = 4
     blink = 5
+
 
 class colour:
     black = 30
@@ -26,8 +28,10 @@ class colour:
     bg_cyan = 46
     bg_white = 47
 
+
 def ansi(code, text):
-   return "\x1b[{}m{}\x1b[m".format(code, text)
+    return "\x1b[{}m{}\x1b[m".format(code, text)
+
 
 def termsize():
     sizeproc = os.popen("stty size")
@@ -35,12 +39,14 @@ def termsize():
     sizeproc.close()
     return [int(height), int(width)]
 
+
 def printsubmission(sub, index):
     title = sub.title
     upvotes = ansi(colour.red, sub.ups)
     downvotes = ansi(colour.blue, sub.downs)
     poster = ansi(escape.underline, str(sub.author))
     comments = ansi(escape.underline, sub.num_comments)
+
     if subreddit == "all":
         postfrom = " to {}".format(ansi(escape.underline, sub.subreddit))
     else:
@@ -50,7 +56,7 @@ def printsubmission(sub, index):
         title = ansi(31, title)
 
     line1 = "{}: {}".format(
-        ansi(1,str(index)),
+        ansi(1, str(index)),
         title,
         )
 
@@ -67,19 +73,22 @@ def printsubmission(sub, index):
         comments,
         domain,
         )
+
     line3 = ""
     sys.stdout.write("{}\n{}\n{}\n".format(line1, line2, line3))
-    
+
+
 def statusbar():
     self = reddit.get_redditor(username)
     left = "/r/{}".format(subreddit)
     right = "{} ({}:{})".format(
-        username, 
+        username,
         self.link_karma,
         self.comment_karma)
 
-    spacer = " "* (width - (len(left) + len(right)))
+    spacer = " " * (width - (len(left) + len(right)))
     return "{}{}{}".format(left, spacer, right)
+
 
 def parsecomments(comments, indentlevel=0):
     out = []
@@ -89,19 +98,23 @@ def parsecomments(comments, indentlevel=0):
         if len(comment.replies) > 0:
             for item in parsecomments(comment.replies, indentlevel+1):
                 out.append(item)
+
     return out
 
 
 def formatcomment(subauthor, comment, index, indent):
     index = ansi(escape.bold, index)
+
     if subauthor == str(comment.author):
         author = ansi(colour.cyan, ansi(escape.bold, comment.author))
     else:
         author = comment.author
+
     upvotes = ansi(colour.red, comment.ups)
     downvotes = ansi(colour.blue, comment.downs)
-    #indentmarker = ansi(escape.bold, ansi(len(indent) % 7 + 100, " "))
-    body = str("\n  ").join(textwrap.wrap(comment.body, width - (len(indent) + 2)))
+    body = str("\n  ").join(textwrap.wrap(
+        comment.body,
+        width - (len(indent) + 2)))
 
     full = "{}: {} ({}|{})\n  {}\n".format(
         index,
@@ -113,22 +126,28 @@ def formatcomment(subauthor, comment, index, indent):
 
     return full
 
+
 def viewcomments(sub):
     sub.replace_more_comments(limit=500, threshold=0)
+
     print("Parsing comments...")
     comments = parsecomments(sub.comments)
     outfile = open("comments", "w")
+
     print("Preparing to write comments...")
     towrite = []
     x = str(sub.author)
+
     for index, item in enumerate(comments):
         indent = " "*(4 * item[0])
         print("Formatting comment {} out of {}".format(index+1, len(comments)))
         for line in formatcomment(x, item[1], index, indent).split("\n"):
             towrite.append(indent + termdown(line))
+
     print("Writing comments...")
     outfile.write("\n".join(towrite))
     outfile.close()
+
     print("Opening comments...")
     os.system("less -R comments")
 
@@ -147,19 +166,19 @@ def gettags(x, tag):
                 errfile.write("TAG: {}\n---\n\n".format(tag))
             return []
             break
-        # Haven't tested it, but something like
-        # gettags(***hello**, **) will cause an infinite loop
-        # and since the tags are added to a list, will eat
-        # memory.
+
         start = x.find(tag, loc)
         if start == -1:
             break
+
         end = x.find(tag, start+1)
         if end == -1:
             break
+
         loc = end + 1
-        tags.append((start,end+len(tag)))
+        tags.append((start, end+len(tag)))
     return tags
+
 
 def termdown(body):
     # Uses the ansi() function to convert from reddit's markdown to
@@ -169,23 +188,22 @@ def termdown(body):
 
     if "**" in body:
         for start, end in gettags(body, "**"):
-            body = body.replace(body[start:end], ansi(escape.bold, body[start+2:end-2]))
+            body = body.replace(
+                body[start:end],
+                ansi(escape.bold, body[start+2:end-2]))
 
     if "*" in body:
         for start, end in gettags(body, "*"):
-            body = body.replace(body[start:end], ansi(escape.underline, body[start+1:end-1]))
+            body = body.replace(
+                body[start:end],
+                ansi(escape.underline, body[start+1:end-1]))
+
     if "`" in body:
         for start, end in gettags(body, "`"):
-            body = body.replace(body[start:end], ansi(colour.cyan, body[start+1:end-1]))
-            # You can't make text in a terminal monospaced, so making it cyan is the
-            # next best thing.
+            body = body.replace(
+                body[start:end],
+                ansi(colour.cyan, body[start+1:end-1]))
 
-            # If I were to make an HTML output format, I would make the code cleaner, by
-            # giving the output the style, and let the output format figure out how to
-            # format it like that.
-
-            # An example is italic text, which URxvt doesn't support (I think konsole does)
-            # Since I can't use italic text, I underline the text.
     bodytext = []
     for line in body.split("\n"):
         x = line
@@ -196,7 +214,7 @@ def termdown(body):
 
     body = body.replace("&gt;", ">")
     return body
-    
+
 
 reddit = praw.Reddit(user_agent="command line reddit client by /u/5225225")
 
@@ -205,11 +223,11 @@ password = sys.argv[2]
 reddit.login(username, password)
 
 
-
 subreddit = "python"
 sorting = "hot"
 
 subheight = 3
+
 
 while True:
     width, height = termsize()
@@ -219,16 +237,22 @@ while True:
     limit = usableheight // subheight
     blank = usableheight % subheight
     subredditobj = reddit.get_subreddit(subreddit)
+
     if sorting == "hot":
         submissions = subredditobj.get_hot(limit=limit)
+
     elif sorting == "controversial":
         submissions = subredditobj.get_controvertial(limit=limit)
+
     elif sorting == "new":
         submissions = subredditobj.get_new(limit=limit)
+
     elif sorting == "rising":
         submissions = subredditobj.get_rising(limit=limit)
+
     elif sorting == "top":
         submissions = subredditobj.get_top(limit=limit)
+
     print(statusbar())
     for _ in range(blank):
         print()
@@ -236,8 +260,7 @@ while True:
         printsubmission(sub, index)
         posts[index] = sub
     command = input(":")
-    if False: pass
-    elif command.startswith("s"):
+    if command.startswith("s"):
         sl = command[1]
         if sl == "h":
             sorting = "hot"
@@ -265,7 +288,7 @@ Write your post here"""
         reddit.submit(subreddit, title, content)
     elif command.startswith("r"):
         subreddit = command[1:]
-    
+
     elif command.startswith("o"):
         post = posts[int(command[2:])]
         if command[1] == "c":
