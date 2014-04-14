@@ -80,7 +80,11 @@ def printsubmission(sub, index):
 
 def statusbar():
     self = reddit.get_redditor(username)
-    left = "/r/{}".format(subreddit)
+    if sorting in ["controversial", "top"]:
+        timestr = "/{}".format(timeframe)
+    else:
+        timestr = ""
+    left = "/r/{}/{}{}".format(subreddit, sorting, timestr)
     right = "{} ({}:{})".format(
         username,
         self.link_karma,
@@ -225,7 +229,7 @@ reddit.login(username, password)
 
 subreddit = "python"
 sorting = "hot"
-
+timeframe = ""
 subheight = 3
 
 
@@ -242,8 +246,20 @@ while True:
         submissions = subredditobj.get_hot(limit=limit)
 
     elif sorting == "controversial":
-        submissions = subredditobj.get_controvertial(limit=limit)
-
+        if timeframe == "":
+            submissions = subredditobj.get_controversial(limit=limit)
+        elif timeframe == "hour":
+            submissions = subredditobj.get_controversial_from_hour(limit=limit)
+        elif timeframe == "day":
+            submissions = subredditobj.get_controversial_from_day(limit=limit)
+        elif timeframe == "week":
+            submissions = subredditobj.get_controversial_from_week(limit=limit)
+        elif timeframe == "month":
+            submissions = subredditobj.get_controversial_from_month(limit=limit)
+        elif timeframe == "year":
+            submissions = subredditobj.get_controversial_from_year(limit=limit)
+        elif timeframe == "all":
+            submissions = subredditobj.get_controversial_from_all(limit=limit)
     elif sorting == "new":
         submissions = subredditobj.get_new(limit=limit)
 
@@ -251,7 +267,21 @@ while True:
         submissions = subredditobj.get_rising(limit=limit)
 
     elif sorting == "top":
-        submissions = subredditobj.get_top(limit=limit)
+        if timeframe == "":
+            submissions = subredditobj.get_top(limit=limit)
+        elif timeframe == "hour":
+            submissions = subredditobj.get_top_from_hour(limit=limit)
+        elif timeframe == "day":
+            submissions = subredditobj.get_top_from_day(limit=limit)
+        elif timeframe == "week":
+            submissions = subredditobj.get_top_from_week(limit=limit)
+        elif timeframe == "month":
+            submissions = subredditobj.get_top_from_month(limit=limit)
+        elif timeframe == "year":
+            submissions = subredditobj.get_top_from_year(limit=limit)
+        elif timeframe == "all":
+            submissions = subredditobj.get_top_from_all(limit=limit)
+            
 
     print(statusbar())
     for _ in range(blank):
@@ -274,6 +304,19 @@ while True:
         if sl == "t":
             sorting = "top"
 
+
+        if command[2] == "h":
+            timeframe = "hour"
+        if command[2] == "d":
+            timeframe = "day"
+        if command[2] == "w":
+            timeframe = "week"
+        if command[2] == "m":
+            timeframe = "month"
+        if command[2] == "y":
+            timeframe = "year"
+        if command[2] == "a":
+            timeframe = "all"
     elif command == "p":
         subfile = open("/tmp/selfpost", "w")
         contents = """<Replace this line with the post title>
