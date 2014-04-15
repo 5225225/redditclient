@@ -30,10 +30,16 @@ class colour:
 
 
 def ansi(code, text):
+    """
+    Return an ANSI SGR code, using the code and the text.
+    """
     return "\x1b[{}m{}\x1b[m".format(code, text)
 
 
 def termsize():
+    """
+    Return the terminal size as a list, [height, width]
+    """
     sizeproc = os.popen("stty size")
     width, height = sizeproc.read().split()
     sizeproc.close()
@@ -132,14 +138,18 @@ def formatcomment(subauthor, comment, index, indent):
 
 
 def viewcomments(sub):
-    sub.replace_more_comments(limit=500, threshold=0)
-
+    sub.replace_more_comments(limit=32, threshold=0)
     print("Parsing comments...")
     comments = parsecomments(sub.comments)
     outfile = open("comments", "w")
 
     print("Preparing to write comments...")
-    towrite = []
+    towrite = [sub.title, ""]
+
+    if sub.is_self and sub.selftext != "":
+        towrite.append(termdown(sub.selftext))
+        towrite.append("")
+
     x = str(sub.author)
 
     for index, item in enumerate(comments):
@@ -157,6 +167,12 @@ def viewcomments(sub):
 
 
 def gettags(x, tag):
+    """
+    Return a list of all pairs of the tag string in x.
+
+    The output is in the format of [[start, end],..]
+    The start/end is the entire string, including the tags.
+    """
     tags = []
     loc = 0
     safetycounter = 100
@@ -190,31 +206,34 @@ def termdown(body):
     # gettags does not handle something like this
     # gettags(**hello** *world*, *) properly, do the longest ones first.
 
-    if "**" in body:
-        for start, end in gettags(body, "**"):
-            body = body.replace(
-                body[start:end],
-                ansi(escape.bold, body[start+2:end-2]))
+    bodytext = []
+    for line in body.split("\n"):
+        x = line
+        if x.startswith("* "):
+          x = u"\u2022 " + x[2:]
 
-    if "*" in body:
-        for start, end in gettags(body, "*"):
-            body = body.replace(
-                body[start:end],
-                ansi(escape.underline, body[start+1:end-1]))
+        if "**" in x:
+            for start, end in gettags(x, "**"):
+                x = x.replace(
+                    x[start:end],
+                    ansi(escape.bold, x[start+2:end-2]))
+
+        if "*" in x:
+            for start, end in gettags(x, "*"):
+                x = x.replace(
+                    x[start:end],
+                    ansi(escape.underline, x[start+1:end-1]))
+        # The previous usage was wrong, as bold/italics can't be multiline
+        # However, code blocks using backtick are, so they are seperate.
+        bodytext.append(x)
+    body = "\n".join(bodytext)
+
 
     if "`" in body:
         for start, end in gettags(body, "`"):
             body = body.replace(
                 body[start:end],
                 ansi(colour.cyan, body[start+1:end-1]))
-
-    bodytext = []
-    for line in body.split("\n"):
-        x = line
-        if x.startswith("    "):
-            x = ansi(colour.cyan, x)
-        bodytext.append(x)
-    body = "\n".join(bodytext)
 
     body = body.replace("&gt;", ">")
     return body
@@ -243,50 +262,49 @@ while True:
     subredditobj = reddit.get_subreddit(subreddit)
 
     if sorting == "hot":
-        submissions = subredditobj.get_hot(limit=limit)
+        subs = subredditobj.get_hot(limit=limit)
 
     elif sorting == "controversial":
         if timeframe == "":
-            submissions = subredditobj.get_controversial(limit=limit)
+            subs = subredditobj.get_controversial(limit=limit)
         elif timeframe == "hour":
-            submissions = subredditobj.get_controversial_from_hour(limit=limit)
+            subs = subredditobj.get_controversial_from_hour(limit=limit)
         elif timeframe == "day":
-            submissions = subredditobj.get_controversial_from_day(limit=limit)
+            subs = subredditobj.get_controversial_from_day(limit=limit)
         elif timeframe == "week":
-            submissions = subredditobj.get_controversial_from_week(limit=limit)
+            subs = subredditobj.get_controversial_from_week(limit=limit)
         elif timeframe == "month":
-            submissions = subredditobj.get_controversial_from_month(limit=limit)
+            subs = subredditobj.get_controversial_from_month(limit=limit)
         elif timeframe == "year":
-            submissions = subredditobj.get_controversial_from_year(limit=limit)
+            subs = subredditobj.get_controversial_from_year(limit=limit)
         elif timeframe == "all":
-            submissions = subredditobj.get_controversial_from_all(limit=limit)
+            subs = subredditobj.get_controversial_from_all(limit=limit)
     elif sorting == "new":
-        submissions = subredditobj.get_new(limit=limit)
+        subs = subredditobj.get_new(limit=limit)
 
     elif sorting == "rising":
-        submissions = subredditobj.get_rising(limit=limit)
+        subs = subredditobj.get_rising(limit=limit)
 
     elif sorting == "top":
         if timeframe == "":
-            submissions = subredditobj.get_top(limit=limit)
+            subs = subredditobj.get_top(limit=limit)
         elif timeframe == "hour":
-            submissions = subredditobj.get_top_from_hour(limit=limit)
+            subs = subredditobj.get_top_from_hour(limit=limit)
         elif timeframe == "day":
-            submissions = subredditobj.get_top_from_day(limit=limit)
+            subs = subredditobj.get_top_from_day(limit=limit)
         elif timeframe == "week":
-            submissions = subredditobj.get_top_from_week(limit=limit)
+            subs = subredditobj.get_top_from_week(limit=limit)
         elif timeframe == "month":
-            submissions = subredditobj.get_top_from_month(limit=limit)
+            subs = subredditobj.get_top_from_month(limit=limit)
         elif timeframe == "year":
-            submissions = subredditobj.get_top_from_year(limit=limit)
+            subs = subredditobj.get_top_from_year(limit=limit)
         elif timeframe == "all":
-            submissions = subredditobj.get_top_from_all(limit=limit)
-            
+            subs = subredditobj.get_top_from_all(limit=limit)
 
     print(statusbar())
     for _ in range(blank):
         print()
-    for index, sub in enumerate(submissions):
+    for index, sub in enumerate(subs):
         printsubmission(sub, index)
         posts[index] = sub
     command = input(":")
@@ -304,19 +322,24 @@ while True:
         if sl == "t":
             sorting = "top"
 
-
         if command[2] == "h":
             timeframe = "hour"
+
         if command[2] == "d":
             timeframe = "day"
+
         if command[2] == "w":
             timeframe = "week"
+
         if command[2] == "m":
             timeframe = "month"
+
         if command[2] == "y":
             timeframe = "year"
+
         if command[2] == "a":
             timeframe = "all"
+
     elif command == "p":
         subfile = open("/tmp/selfpost", "w")
         contents = """<Replace this line with the post title>
@@ -349,5 +372,11 @@ Write your post here"""
                 os.system("feh -F {}".format(post.url))
             else:
                 os.system("w3m {}".format(post.url))
+    elif command == "desc":
+        outfile = open("sidebar", "w")
+        sidebar = termdown(subredditobj.description)
+        outfile.write(sidebar)
+        outfile.close()
+        os.system("less -R sidebar")
     elif command in ["q", "quit"]:
         sys.exit(0)
