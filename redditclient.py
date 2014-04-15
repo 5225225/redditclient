@@ -241,10 +241,18 @@ def termdown(body):
 
 reddit = praw.Reddit(user_agent="command line reddit client by /u/5225225")
 
-username = sys.argv[1]
-password = sys.argv[2]
-reddit.login(username, password)
-
+try:
+    username = sys.argv[1]
+    password = sys.argv[2]
+except IndexError:
+    pass
+try:
+    reddit.login(username, password)
+except praw.errors.InvalidUserPass:
+    print("Incorrect username/password")
+    sys.exit(1)
+except NameError:
+    pass
 
 subreddit = "python"
 sorting = "hot"
@@ -310,35 +318,41 @@ while True:
     command = input(":")
     if command.startswith("s"):
         sl = command[1]
+
+        needs_time = True
+
         if sl == "h":
             sorting = "hot"
+            needs_time = False
 
         if sl == "c":
             sorting = "controversial"
 
         if sl == "n":
             sorting = "new"
+            needs_time = False
 
         if sl == "t":
             sorting = "top"
 
-        if command[2] == "h":
-            timeframe = "hour"
+        if needs_time:
+            if command[2] == "h":
+                timeframe = "hour"
 
-        if command[2] == "d":
-            timeframe = "day"
+            if command[2] == "d":
+                timeframe = "day"
 
-        if command[2] == "w":
-            timeframe = "week"
+            if command[2] == "w":
+                timeframe = "week"
 
-        if command[2] == "m":
-            timeframe = "month"
+            if command[2] == "m":
+                timeframe = "month"
 
-        if command[2] == "y":
-            timeframe = "year"
+            if command[2] == "y":
+                timeframe = "year"
 
-        if command[2] == "a":
-            timeframe = "all"
+            if command[2] == "a":
+                timeframe = "all"
 
     elif command == "p":
         subfile = open("/tmp/selfpost", "w")
@@ -378,5 +392,9 @@ Write your post here"""
         outfile.write(sidebar)
         outfile.close()
         os.system("less -R sidebar")
+    elif command == "help":
+        print("I haven't written a manual yet. In the mean time, read")
+        print("the source code. (hit enter to return)")
+        input()
     elif command in ["q", "quit"]:
         sys.exit(0)
