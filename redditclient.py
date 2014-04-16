@@ -262,34 +262,16 @@ reddit = praw.Reddit(user_agent="command line reddit client by /u/5225225")
 try:
     username = sys.argv[1]
     password = sys.argv[2]
+    reddit.login(username, password)
 except IndexError:
     print("A username and password were not given as arguments")
     print("The username goes first, then the password")
-    print()
-    print("If you do not have an account and want to make one, type yes.")
-    if input("> ").strip() == "yes":
-        print("When you are typing the password, it will be echoed to screen")
-        print("To avoid this, make an account on the reddit website")
-        print("www.reddit.com")
-        newusername = input("Enter a username: ")
-        newpassword = input("Enter a password: ")
-        print("To enter the captcha, copy paste the URL into a web browser")
-        print("And type what you see into the terminal")
-        reddit.create_redditor(newusername, newpassword)
-        username = newusername
-        password = newpassword
-        print("User created. Logging in...")
-    else:
-        sys.exit(0)
-try:
-    reddit.login(username, password)
 except praw.errors.InvalidUserPass:
     print("Incorrect username/password")
     sys.exit(1)
 except NameError:
-    print("A password was not entered. Run redditclient.py with no arguments")
-    print("to make an account, or enter a valid user/pass as arguments")
-    sys.exit(0)
+    print("A password was not entered.")
+    sys.exit(1)
 
 # Once I get to this point, I can assume that the user is logged in.
 # This client can't be used without a reddit account
