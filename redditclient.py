@@ -212,6 +212,9 @@ def termdown(body):
         if x.startswith("* "):
           x = u"\u2022 " + x[2:]
 
+        if x.startswith("    "):
+            x = ansi(colour.cyan, x)
+
         if "**" in x:
             for start, end in gettags(x, "**"):
                 x = x.replace(
