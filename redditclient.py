@@ -29,6 +29,22 @@ class colour:
     bg_white = 47
 
 
+def ansilen(text):
+    """
+    Return the length of a string, taking into account ANSI escape codes
+    """
+    length = 0
+    ignore = False
+    for letter in text:
+        if letter == "\x1b":
+            ignore = True
+        if not ignore:
+            length = length + 1
+        if ignore and letter == "m":
+            ignore = False
+    return length
+
+
 def ansi(code, text):
     """
     Return an ANSI SGR code, using the code and the text.
@@ -66,7 +82,7 @@ def printsubmission(sub, index):
         title,
         )
 
-    if len(str(index)) + len(str(title)) + 2 > width:
+    if ansilen(line1) > width:
         line1 = line1[:width-1] + u"\u2026"
 
     domain = ansi(colour.yellow, sub.domain)
@@ -96,7 +112,7 @@ def statusbar():
         self.link_karma,
         self.comment_karma)
 
-    spacer = " " * (width - (len(left) + len(right)))
+    spacer = " " * (width - (ansilen(left) + ansilen(right)))
     return "{}{}{}".format(left, spacer, right)
 
 
