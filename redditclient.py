@@ -31,7 +31,12 @@ class colour:
 
 def promptpassword(prompt):
     os.system("stty -echo")
-    password = input(prompt)
+    try:
+        password = input(prompt)
+    except KeyboardInterrupt:
+        os.system("stty echo")
+        print()
+        quit()
     os.system("stty echo")
     print()
     return password
