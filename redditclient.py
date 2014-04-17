@@ -29,6 +29,14 @@ class colour:
     bg_white = 47
 
 
+def promptpassword(prompt):
+    os.system("stty -echo")
+    password = input(prompt)
+    os.system("stty echo")
+    print()
+    return password
+
+
 def ansilen(text):
     """
     Return the length of a string, taking into account ANSI escape codes
@@ -244,16 +252,20 @@ def termdown(body):
             x = ansi(colour.cyan, x)
 
         if "**" in x:
-            for start, end in gettags(x, "**"):
-                x = x.replace(
-                    x[start:end],
-                    ansi(escape.bold, x[start+2:end-2]))
+            toreplace = []
+            for start, end in gettags(x, "*"):
+                toreplace.append(x[start:end])
+
+            for item in toreplace:
+                x = x.replace(item, ansi(escape.underline, item[1:-1]))
 
         if "*" in x:
+            toreplace = []
             for start, end in gettags(x, "*"):
-                x = x.replace(
-                    x[start:end],
-                    ansi(escape.underline, x[start+1:end-1]))
+                toreplace.append(x[start:end])
+
+            for item in toreplace:
+                x = x.replace(item, ansi(escape.underline, item[1:-1]))
         # The previous usage was wrong, as bold/italics can't be multiline
         # However, code blocks using backtick are, so they are seperate.
         bodytext.append(x)
@@ -271,18 +283,24 @@ def termdown(body):
 
 reddit = praw.Reddit(user_agent="command line reddit client by /u/5225225")
 
-try:
+if len(sys.argv) == 1:
+    username = input("Enter username: ")
+    password = promptpassword("Enter password: ")
+elif len(sys.argv) == 2:
+    username = sys.argv[1]
+    password = promptpassword("Enter password: ")
+else:
     username = sys.argv[1]
     password = sys.argv[2]
-    reddit.login(username, password)
-except IndexError:
-    print("A username and password were not given as arguments")
-    print("The username goes first, then the password")
-except praw.errors.InvalidUserPass:
-    print("Incorrect username/password")
+
+if username == "" or password == "":
+    print("Invalid username or password")
     sys.exit(1)
-except NameError:
-    print("A password was not entered.")
+
+try:
+    reddit.login(username, password)
+except praw.errors.InvalidUserPass:
+    print("Invalid username or password")
     sys.exit(1)
 
 # Once I get to this point, I can assume that the user is logged in.
