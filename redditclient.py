@@ -436,6 +436,8 @@ Write your post here"""
                 # 1. get a list of the urls
                 # 2. pass that list to feh
                 os.system("feh -F {}".format(post.url))
+            if "youtube.com" in post.url:
+                os.system("vlc -f {}".format(post.url))
             else:
                 os.system("w3m {}".format(post.url))
     elif command == "desc":
