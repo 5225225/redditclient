@@ -52,6 +52,17 @@ def ansi(code, text):
     return "\x1b[{}m{}\x1b[m".format(code, text)
 
 
+def filtercomment(comment):
+    """
+    Given a Comment object, if this function returns False the comment will
+    not be displayed, along with any subcomments
+    """
+
+    if comment.ups < comment.downs:
+        return False
+    return True
+
+
 def termsize():
     """
     Return the terminal size as a list, [height, width]
@@ -120,10 +131,11 @@ def parsecomments(comments, indentlevel=0):
     out = []
     # In the format of [indentlevel, fulltext]
     for comment in comments:
-        out.append([indentlevel, comment])
-        if len(comment.replies) > 0:
-            for item in parsecomments(comment.replies, indentlevel+1):
-                out.append(item)
+        if filtercomment(comment):
+            out.append([indentlevel, comment])
+            if len(comment.replies) > 0:
+                for item in parsecomments(comment.replies, indentlevel+1):
+                    out.append(item)
 
     return out
 
