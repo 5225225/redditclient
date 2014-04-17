@@ -280,6 +280,9 @@ def termdown(body):
     body = body.replace("&gt;", ">")
     return body
 
+if sys.version[0] != "3":
+    print("You don't seem to be using python version 3")
+    sys.exit(0)
 
 reddit = praw.Reddit(user_agent="command line reddit client by /u/5225225")
 
