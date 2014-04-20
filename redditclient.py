@@ -2,9 +2,11 @@ import time
 import sys
 import os
 import textwrap
+import subprocess
+import re
 
 import praw
-
+import requests
 
 class escape:
     reset = 0
@@ -29,15 +31,44 @@ class colour:
     bg_white = 47
 
 
+def uniq(inputlist):
+    seen = set()
+    seen_add = seen.add
+    return [x for x in inputlist if x not in seen and not seen_add(x)]
+    # top answer on https://stackoverflow.com/questions/480214/
+
+def callprogram(program):
+    try:
+        subprocess.call(program, shell=True)
+    except FileNotFoundError:
+        print("{} can't be found on your system, install it".format(program))
+
+
+def extracturls(url):
+    """
+    Extract i.imgur.com urls from an imgur gallery
+    """
+
+    r = requests.get(url)
+    data = r.text
+    regex = re.compile("i\.imgur\.com.*\.jpg")
+    matches = regex.findall(data)
+    # Conversion to a set then a list is to remove duplicates
+    matches = uniq(matches)
+    matches = ["http://" + match for match in matches]
+    matches = matches[:len(matches)//2]
+    # Imgur returns thumbnails, which we don't want.
+    return matches
+
 def promptpassword(prompt):
-    os.system("stty -echo")
+    callprogram("stty -echo")
     try:
         password = input(prompt)
     except KeyboardInterrupt:
-        os.system("stty echo")
+        callprogram("stty echo")
         print()
         quit()
-    os.system("stty echo")
+    callprogram("stty echo")
     print()
     return password
 
@@ -93,8 +124,10 @@ def printsubmission(sub, index):
     poster = ansi(escape.underline, str(sub.author))
     comments = ansi(escape.underline, sub.num_comments)
 
-    if subreddit == "all":
-        postfrom = " to {}".format(ansi(escape.underline, sub.subreddit))
+    if subreddit.display_name == "all":
+        postfrom = " to {}".format(ansi(
+            escape.underline,
+            sub.subreddit.display_name))
     else:
         postfrom = ""
 
@@ -130,7 +163,7 @@ def statusbar():
         timestr = "/{}".format(timeframe)
     else:
         timestr = ""
-    left = "/r/{}/{}{}".format(subreddit, sorting, timestr)
+    left = "/r/{}/{}{}".format(subreddit.display_name, sorting, timestr)
     right = "{} ({}:{})".format(
         username,
         self.link_karma,
@@ -179,7 +212,7 @@ def formatcomment(subauthor, comment, index, indent):
 
 
 def viewcomments(sub):
-    sub.replace_more_comments(limit=32, threshold=0)
+    sub.replace_more_comments(limit=4, threshold=0)
     print("Parsing comments...")
     comments = parsecomments(sub.comments)
     outfile = open("comments", "w")
@@ -204,7 +237,7 @@ def viewcomments(sub):
     outfile.close()
 
     print("Opening comments...")
-    os.system("less -R comments")
+    callprogram("less -R comments")
 
 
 def gettags(x, tag):
@@ -262,7 +295,7 @@ def termdown(body):
                 toreplace.append(x[start:end])
 
             for item in toreplace:
-                x = x.replace(item, ansi(escape.underline, item[1:-1]))
+                x = x.replace(item, ansi(escape.underline, item[2:-2]))
 
         if "*" in x:
             toreplace = []
@@ -277,13 +310,15 @@ def termdown(body):
     body = "\n".join(bodytext)
 
     if "`" in body:
+        toreplace = []
         for start, end in gettags(body, "`"):
-            body = body.replace(
-                body[start:end],
-                ansi(colour.cyan, body[start+1:end-1]))
+            toreplace.append(body[start:end])
+        for item in toreplace:
+            x = x.replace(item, ansi(colour.cyan, item[1:-1]))
 
     body = body.replace("&gt;", ">")
     return body
+
 
 if sys.version[0] != "3":
     print("You don't seem to be using python version 3")
@@ -314,7 +349,7 @@ except praw.errors.InvalidUserPass:
 # Once I get to this point, I can assume that the user is logged in.
 # This client can't be used without a reddit account
 
-subreddit = "python"
+subreddit = reddit.get_subreddit("python")
 sorting = "hot"
 timeframe = ""
 subheight = 3
@@ -327,47 +362,45 @@ while True:
     # One for the top status bar, and one for the command line at the bottom.
     limit = usableheight // subheight
     blank = usableheight % subheight
-    subredditobj = reddit.get_subreddit(subreddit)
-
     if sorting == "hot":
-        subs = subredditobj.get_hot(limit=limit)
+        subs = subreddit.get_hot(limit=limit)
 
     elif sorting == "controversial":
         if timeframe == "":
-            subs = subredditobj.get_controversial(limit=limit)
+            subs = subreddit.get_controversial(limit=limit)
         elif timeframe == "hour":
-            subs = subredditobj.get_controversial_from_hour(limit=limit)
+            subs = subreddit.get_controversial_from_hour(limit=limit)
         elif timeframe == "day":
-            subs = subredditobj.get_controversial_from_day(limit=limit)
+            subs = subreddit.get_controversial_from_day(limit=limit)
         elif timeframe == "week":
-            subs = subredditobj.get_controversial_from_week(limit=limit)
+            subs = subreddit.get_controversial_from_week(limit=limit)
         elif timeframe == "month":
-            subs = subredditobj.get_controversial_from_month(limit=limit)
+            subs = subreddit.get_controversial_from_month(limit=limit)
         elif timeframe == "year":
-            subs = subredditobj.get_controversial_from_year(limit=limit)
+            subs = subreddit.get_controversial_from_year(limit=limit)
         elif timeframe == "all":
-            subs = subredditobj.get_controversial_from_all(limit=limit)
+            subs = subreddit.get_controversial_from_all(limit=limit)
     elif sorting == "new":
-        subs = subredditobj.get_new(limit=limit)
+        subs = subreddit.get_new(limit=limit)
 
     elif sorting == "rising":
-        subs = subredditobj.get_rising(limit=limit)
+        subs = subreddit.get_rising(limit=limit)
 
     elif sorting == "top":
         if timeframe == "":
-            subs = subredditobj.get_top(limit=limit)
+            subs = subreddit.get_top(limit=limit)
         elif timeframe == "hour":
-            subs = subredditobj.get_top_from_hour(limit=limit)
+            subs = subreddit.get_top_from_hour(limit=limit)
         elif timeframe == "day":
-            subs = subredditobj.get_top_from_day(limit=limit)
+            subs = subreddit.get_top_from_day(limit=limit)
         elif timeframe == "week":
-            subs = subredditobj.get_top_from_week(limit=limit)
+            subs = subreddit.get_top_from_week(limit=limit)
         elif timeframe == "month":
-            subs = subredditobj.get_top_from_month(limit=limit)
+            subs = subreddit.get_top_from_month(limit=limit)
         elif timeframe == "year":
-            subs = subredditobj.get_top_from_year(limit=limit)
+            subs = subreddit.get_top_from_year(limit=limit)
         elif timeframe == "all":
-            subs = subredditobj.get_top_from_all(limit=limit)
+            subs = subreddit.get_top_from_all(limit=limit)
 
     print(statusbar())
     for _ in range(blank):
@@ -421,13 +454,14 @@ while True:
 Write your post here"""
         subfile.write(contents)
         subfile.close()
-        os.system("vim /tmp/selfpost")
+        callprogram("vim /tmp/selfpost")
         body = open("/tmp/selfpost").read().split("\n")
         title = body[0].strip()
         content = "\n".join(body[2:])
         reddit.submit(subreddit, title, content)
     elif command.startswith("r"):
-        subreddit = command[1:]
+        subreddit = reddit.get_subreddit(command[1:], fetch=True)
+        
 
     elif command.startswith("o"):
         post = posts[int(command[2:])]
@@ -436,24 +470,23 @@ Write your post here"""
             sub = posts[int(command[2:])]
             viewcomments(sub)
         elif command[1] == "i":
-            os.system("feh -F {}".format(post.url))
+            callprogram("feh -F {}".format(post.url))
         elif command[1] == "l":
             if "i.imgur.com" in post.url:
-                # TODO handle imgur galleries
-                # All I need to do is
-                # 1. get a list of the urls
-                # 2. pass that list to feh
-                os.system("feh -F {}".format(post.url))
-            if "youtube.com" in post.url:
-                os.system("vlc -f {}".format(post.url))
+                callprogram("feh -F {}".format(post.url))
+            if "imgur.com" in post.url:
+                urls = extracturls(post.url)
+                callprogram("feh -F {}".format(" ".join(urls)))
+            elif "youtube.com" in post.url:
+                callprogram("vlc -f {}".format(post.url))
             else:
-                os.system("w3m {}".format(post.url))
+                callprogram("w3m {}".format(post.url))
     elif command == "desc":
         outfile = open("sidebar", "w")
-        sidebar = termdown(subredditobj.description)
+        sidebar = termdown(subreddit.description)
         outfile.write(sidebar)
         outfile.close()
-        os.system("less -R sidebar")
+        callprogram("less -R sidebar")
     elif command == "help":
         print("I haven't written a manual yet. In the mean time, read")
         print("the source code. (hit enter to return)")
