@@ -491,5 +491,8 @@ Write your post here"""
         print("I haven't written a manual yet. In the mean time, read")
         print("the source code. (hit enter to return)")
         input()
+    elif command == "pdbstart":
+        import pdb
+        pdb.set_trace()
     elif command in ["q", "quit"]:
         sys.exit(0)
