@@ -30,6 +30,7 @@ class colour:
     bg_cyan = 46
     bg_white = 47
 
+tags = {}
 
 def uniq(inputlist):
     seen = set()
@@ -159,6 +160,7 @@ def printsubmission(sub, index):
 
 def statusbar():
     self = reddit.get_redditor(username)
+    toadd = []
     if sorting in ["controversial", "top"]:
         timestr = "/{}".format(timeframe)
     else:
@@ -354,7 +356,8 @@ sorting = "hot"
 timeframe = ""
 subheight = 3
 
-
+viewmode = "normal"
+searchterm = ""
 while True:
     width, height = termsize()
     posts = {}
@@ -362,50 +365,56 @@ while True:
     # One for the top status bar, and one for the command line at the bottom.
     limit = usableheight // subheight
     blank = usableheight % subheight
-    if sorting == "hot":
-        subs = subreddit.get_hot(limit=limit)
 
-    elif sorting == "controversial":
-        if timeframe == "":
-            subs = subreddit.get_controversial(limit=limit)
-        elif timeframe == "hour":
-            subs = subreddit.get_controversial_from_hour(limit=limit)
-        elif timeframe == "day":
-            subs = subreddit.get_controversial_from_day(limit=limit)
-        elif timeframe == "week":
-            subs = subreddit.get_controversial_from_week(limit=limit)
-        elif timeframe == "month":
-            subs = subreddit.get_controversial_from_month(limit=limit)
-        elif timeframe == "year":
-            subs = subreddit.get_controversial_from_year(limit=limit)
-        elif timeframe == "all":
-            subs = subreddit.get_controversial_from_all(limit=limit)
-    elif sorting == "new":
-        subs = subreddit.get_new(limit=limit)
+    if viewmode == "normal":
+        if sorting == "hot":
+            subs = subreddit.get_hot(limit=limit)
 
-    elif sorting == "rising":
-        subs = subreddit.get_rising(limit=limit)
+        elif sorting == "controversial":
+            if timeframe == "":
+                subs = subreddit.get_controversial(limit=limit)
+            elif timeframe == "hour":
+                subs = subreddit.get_controversial_from_hour(limit=limit)
+            elif timeframe == "day":
+                subs = subreddit.get_controversial_from_day(limit=limit)
+            elif timeframe == "week":
+                subs = subreddit.get_controversial_from_week(limit=limit)
+            elif timeframe == "month":
+                subs = subreddit.get_controversial_from_month(limit=limit)
+            elif timeframe == "year":
+                subs = subreddit.get_controversial_from_year(limit=limit)
+            elif timeframe == "all":
+                subs = subreddit.get_controversial_from_all(limit=limit)
+        elif sorting == "new":
+            subs = subreddit.get_new(limit=limit)
 
-    elif sorting == "top":
-        if timeframe == "":
-            subs = subreddit.get_top(limit=limit)
-        elif timeframe == "hour":
-            subs = subreddit.get_top_from_hour(limit=limit)
-        elif timeframe == "day":
-            subs = subreddit.get_top_from_day(limit=limit)
-        elif timeframe == "week":
-            subs = subreddit.get_top_from_week(limit=limit)
-        elif timeframe == "month":
-            subs = subreddit.get_top_from_month(limit=limit)
-        elif timeframe == "year":
-            subs = subreddit.get_top_from_year(limit=limit)
-        elif timeframe == "all":
-            subs = subreddit.get_top_from_all(limit=limit)
+        elif sorting == "rising":
+            subs = subreddit.get_rising(limit=limit)
 
+        elif sorting == "top":
+            if timeframe == "":
+                subs = subreddit.get_top(limit=limit)
+            elif timeframe == "hour":
+                subs = subreddit.get_top_from_hour(limit=limit)
+            elif timeframe == "day":
+                subs = subreddit.get_top_from_day(limit=limit)
+            elif timeframe == "week":
+                subs = subreddit.get_top_from_week(limit=limit)
+            elif timeframe == "month":
+                subs = subreddit.get_top_from_month(limit=limit)
+            elif timeframe == "year":
+                subs = subreddit.get_top_from_year(limit=limit)
+            elif timeframe == "all":
+                subs = subreddit.get_top_from_all(limit=limit)
+    elif viewmode == "search":
+        subs = subreddit.search(searchterm)
+        viewmode = "normal"
     print(statusbar())
     for _ in range(blank):
         print()
     for index, sub in enumerate(subs):
+        if index >= limit:
+            break
         printsubmission(sub, index)
         posts[index] = sub
     command = input(":")
@@ -487,6 +496,9 @@ Write your post here"""
         outfile.write(sidebar)
         outfile.close()
         callprogram("less -R sidebar")
+    elif command.startswith("/"):
+        searchterm = command[1:]
+        viewmode = "search"
     elif command == "help":
         print("I haven't written a manual yet. In the mean time, read")
         print("the source code. (hit enter to return)")
