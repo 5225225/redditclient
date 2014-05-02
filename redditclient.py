@@ -129,7 +129,7 @@ def printsubmission(sub, index, stdscr):
         stdscr.addstr(" to ")
         stdscr.addstr(sub.subreddit.display_name, curses.A_UNDERLINE)
     stdscr.addstr(" " + sub.domain, curses.COLOR_YELLOW)
-    stdscr.addstr("\n")
+    stdscr.addstr("\n\n")
 
 
 def updatestatusbar(screen):
@@ -270,8 +270,47 @@ def termdown(body):
     body = body.replace("&gt;", ">")
     return body
 
+def refreshsubs(sorting, timeframe, limit):
+    if sorting == "hot":
+        subs = subreddit.get_hot(limit=limit)
 
+    elif sorting == "controversial":
+        if timeframe == "":
+            subs = subreddit.get_controversial(limit=limit)
+        elif timeframe == "hour":
+            subs = subreddit.get_controversial_from_hour(limit=limit)
+        elif timeframe == "day":
+            subs = subreddit.get_controversial_from_day(limit=limit)
+        elif timeframe == "week":
+            subs = subreddit.get_controversial_from_week(limit=limit)
+        elif timeframe == "month":
+            subs = subreddit.get_controversial_from_month(limit=limit)
+        elif timeframe == "year":
+            subs = subreddit.get_controversial_from_year(limit=limit)
+        elif timeframe == "all":
+            subs = subreddit.get_controversial_from_all(limit=limit)
+    elif sorting == "new":
+        subs = subreddit.get_new(limit=limit)
 
+    elif sorting == "rising":
+        subs = subreddit.get_rising(limit=limit)
+
+    elif sorting == "top":
+        if timeframe == "":
+            subs = subreddit.get_top(limit=limit)
+        elif timeframe == "hour":
+            subs = subreddit.get_top_from_hour(limit=limit)
+        elif timeframe == "day":
+            subs = subreddit.get_top_from_day(limit=limit)
+        elif timeframe == "week":
+            subs = subreddit.get_top_from_week(limit=limit)
+        elif timeframe == "month":
+            subs = subreddit.get_top_from_month(limit=limit)
+        elif timeframe == "year":
+            subs = subreddit.get_top_from_year(limit=limit)
+        elif timeframe == "all":
+            subs = subreddit.get_top_from_all(limit=limit)
+    return subs
 if sys.version[0] != "3":
     screen.addstr("You don't seem to be using python version 3")
     sys.exit(0)
@@ -317,83 +356,63 @@ subheight = 3
 viewmode = "normal"
 searchterm = ""
 
+width = curses.COLS
+height = curses.LINES 
+
 statusscreen = curses.newwin(1, curses.COLS, 0, 0)
 commandline = curses.newwin(1, curses.COLS, curses.LINES-1, 0)
+line = 0
+limit = 100
 while True:
-    width = curses.COLS
-    height = curses.LINES 
     posts = {}
     usableheight = height - 2
     # One for the top status bar, and one for the command line at the bottom.
-    limit = 20
 
-    listingpad = curses.newpad(limit*3, width)
-
-    if viewmode == "normal":
-        if sorting == "hot":
-            subs = subreddit.get_hot(limit=limit)
-
-        elif sorting == "controversial":
-            if timeframe == "":
-                subs = subreddit.get_controversial(limit=limit)
-            elif timeframe == "hour":
-                subs = subreddit.get_controversial_from_hour(limit=limit)
-            elif timeframe == "day":
-                subs = subreddit.get_controversial_from_day(limit=limit)
-            elif timeframe == "week":
-                subs = subreddit.get_controversial_from_week(limit=limit)
-            elif timeframe == "month":
-                subs = subreddit.get_controversial_from_month(limit=limit)
-            elif timeframe == "year":
-                subs = subreddit.get_controversial_from_year(limit=limit)
-            elif timeframe == "all":
-                subs = subreddit.get_controversial_from_all(limit=limit)
-        elif sorting == "new":
-            subs = subreddit.get_new(limit=limit)
-
-        elif sorting == "rising":
-            subs = subreddit.get_rising(limit=limit)
-
-        elif sorting == "top":
-            if timeframe == "":
-                subs = subreddit.get_top(limit=limit)
-            elif timeframe == "hour":
-                subs = subreddit.get_top_from_hour(limit=limit)
-            elif timeframe == "day":
-                subs = subreddit.get_top_from_day(limit=limit)
-            elif timeframe == "week":
-                subs = subreddit.get_top_from_week(limit=limit)
-            elif timeframe == "month":
-                subs = subreddit.get_top_from_month(limit=limit)
-            elif timeframe == "year":
-                subs = subreddit.get_top_from_year(limit=limit)
-            elif timeframe == "all":
-                subs = subreddit.get_top_from_all(limit=limit)
+    listingpad = curses.newpad(limit*3+1, width)
+    subs = refreshsubs(sorting, timeframe, limit)
     for index, sub in enumerate(subs):
-        if index >= limit:
-            break
         printsubmission(sub, index, listingpad)
         posts[index] = sub
-    line = 0
     screen.move(height-1, 0)
     updatestatusbar(statusscreen)
     statusscreen.refresh()
     listingpad.refresh(line, 0, 1,0, height-2, width)
-    commandline.addstr(0, 0, ":")
     commandline.refresh()
+    #Time to add VIM modes!
+    # My goal is to allow for things like <count>operator, 5j for example.
+    # I'll do that after I get the basics down, though.
     try:
         mode = "normal"
+        inputlist = []
         while True:
+            curses.echo()
             char = commandline.getch()
+            curses.noecho()
             if mode == "normal":
                 if char == ord("j"):
-                    line += 3
+                    if line + (height ) >= limit * 3:
+                        pass
+                    else:
+                        line += 3
                     break
                 elif char == ord("k"):
-                    line -= 3
+                    if line == 0:
+                        pass
+                    else:
+                        line -= 3
+                    break
+                elif char == ord(":"):
+                    mode = "command"
+                else:
+                    pass
+            elif mode == "command":
+                if char == ord("\n"):
                     break
                 else:
-                    commandline.addchr(chr(char))
+                    inputlist.append(chr(char))
+        inputstr = "".join(inputlist)
+        if inputstr == "q":
+            cursesexit()
     except KeyboardInterrupt:
         cursesexit()
 #   elif command == "p":
