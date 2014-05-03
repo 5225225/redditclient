@@ -363,16 +363,22 @@ statusscreen = curses.newwin(1, curses.COLS, 0, 0)
 commandline = curses.newwin(1, curses.COLS, curses.LINES-1, 0)
 line = 0
 limit = 100
+refreshneeded = True
 while True:
     posts = {}
     usableheight = height - 2
     # One for the top status bar, and one for the command line at the bottom.
-
-    listingpad = curses.newpad(limit*3+1, width)
-    subs = refreshsubs(sorting, timeframe, limit)
-    for index, sub in enumerate(subs):
-        printsubmission(sub, index, listingpad)
-        posts[index] = sub
+    if refreshneeded:
+        commandline.clear()
+        commandline.addstr("-- loading /r/{} --".format(str(subreddit)), curses.A_BOLD)
+        commandline.refresh()
+        listingpad = curses.newpad(limit*3+1, width)
+        subs = refreshsubs(sorting, timeframe, limit)
+        for index, sub in enumerate(subs):
+            printsubmission(sub, index, listingpad)
+            posts[index] = sub
+        refreshneeded = False
+        commandline.clear()
     screen.move(height-1, 0)
     updatestatusbar(statusscreen)
     statusscreen.refresh()
@@ -385,9 +391,9 @@ while True:
         mode = "normal"
         inputlist = []
         while True:
-            curses.echo()
+            if mode == "normal": curses.noecho()
+            else: curses.echo()
             char = commandline.getch()
-            curses.noecho()
             if mode == "normal":
                 if char == ord("j"):
                     if line + (height ) >= limit * 3:
@@ -403,6 +409,19 @@ while True:
                     break
                 elif char == ord(":"):
                     mode = "command"
+                    commandline.addch(":")
+                elif char == ord("r"):
+                    commandline.addstr("r/")
+                    curses.echo()
+                    subredditlist = []
+                    while True:
+                        char = commandline.getch()
+                        if char == ord("\n"):
+                            break
+                        else:
+                            subredditlist.append(chr(char))
+                    subreddit = reddit.get_subreddit("".join(subredditlist))
+                    refreshneeded = True
                 else:
                     pass
             elif mode == "command":
@@ -413,6 +432,9 @@ while True:
         inputstr = "".join(inputlist)
         if inputstr == "q":
             cursesexit()
+        elif inputstr == "refresh":
+            subs = refreshsubs(sorting, timeframe, limit)
+        commandline.erase()
     except KeyboardInterrupt:
         cursesexit()
 #   elif command == "p":
