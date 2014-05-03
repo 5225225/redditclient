@@ -379,7 +379,7 @@ while True:
             posts[index] = sub
         refreshneeded = False
         commandline.clear()
-    screen.move(height-1, 0)
+#    screen.move(height-1, 0)
     updatestatusbar(statusscreen)
     statusscreen.refresh()
     listingpad.refresh(line, 0, 1,0, height-2, width)
@@ -422,6 +422,7 @@ while True:
                             subredditlist.append(chr(char))
                     subreddit = reddit.get_subreddit("".join(subredditlist))
                     refreshneeded = True
+                    break
                 else:
                     pass
             elif mode == "command":
@@ -429,12 +430,12 @@ while True:
                     break
                 else:
                     inputlist.append(chr(char))
-        inputstr = "".join(inputlist)
-        if inputstr == "q":
-            cursesexit()
-        elif inputstr == "refresh":
-            subs = refreshsubs(sorting, timeframe, limit)
-        commandline.erase()
+            inputstr = "".join(inputlist)
+            if inputstr == "q":
+                cursesexit()
+            elif inputstr == "refresh":
+                subs = refreshsubs(sorting, timeframe, limit)
+            commandline.erase()
     except KeyboardInterrupt:
         cursesexit()
 #   elif command == "p":
