@@ -9,6 +9,8 @@ import warnings
 import praw
 import requests
 
+import curses
+import curses.ascii
 class escape:
     reset = 0
     bold = 1
@@ -35,16 +37,14 @@ tags = {}
 
 
 def cursesinit():
-    screen = curses.initscr()
+    stdscr = curses.initscr()
     curses.noecho()
     curses.cbreak()
-    screen.keypad(False)
     curses.start_color()
     
 
 def cursesexit():
     curses.nocbreak()
-    screen.keypad(False)
     curses.echo()
     curses.endwin()
     quit()
@@ -306,8 +306,33 @@ def refreshsubs(sorting, timeframe, limit):
         elif timeframe == "all":
             subs = subreddit.get_top_from_all(limit=limit)
     return subs
+
+def readline(screen, prompt):
+    output = ""
+    screen.addstr(prompt)
+    while True:
+        char = screen.getch()
+        if char == ord("\n"):
+            break
+        elif char == curses.ascii.ESC:
+            return ""
+        elif char == curses.ascii.DEL:
+            curry, currx = screen.getyx()
+            if currx == 1:
+                return ""
+                # Trying to backspace the :
+                # Just exit command mode, it's what vim does.
+            screen.addstr(curry, currx-1, " ")
+            screen.move(curry, currx-1)
+            output = output[:-1]
+        else:
+            output += (chr(char))
+            screen.addch(char)
+    return "".join(output)
+    curses.noecho()
+
 if sys.version[0] != "3":
-    screen.addstr("You don't seem to be using python version 3")
+    sys.stderr.write("You don't seem to be using python version 3\n")
     sys.exit(0)
 
 reddit = praw.Reddit(user_agent="command line reddit client by /u/5225225")
@@ -333,13 +358,7 @@ except praw.errors.InvalidUserPass:
     screen.addstr("Invalid username or password")
     sys.exit(1)
 
-import curses
-screen = curses.initscr()
-curses.start_color()
-curses.noecho()
-curses.cbreak()
-screen.keypad(False)
-
+cursesinit()
 # Once I get to this point, I can assume that the user is logged in.
 # This client can't be used without a reddit account
 
@@ -387,12 +406,8 @@ while True:
         inputlist = []
         while True:
             if mode == "normal":
-                curses.noecho()
-            else:
-                curses.echo()
-            char = commandline.getch()
-            commandline.refresh()
-            if mode == "normal":
+                char = commandline.getch()
+                commandline.refresh()
                 if char == ord("j"):
                     if line + (height ) >= limit * 3:
                         pass
@@ -409,32 +424,20 @@ while True:
                     mode = "command"
                     commandline.addch(":")
                 elif char == ord("r"):
-                    commandline.addstr("r/")
-                    curses.echo()
-                    subredditlist = []
-                    while True:
-                        char = commandline.getch()
-                        if char == ord("\n"):
-                            break
-                        else:
-                            subredditlist.append(chr(char))
-                    subreddit = reddit.get_subreddit("".join(subredditlist))
+                    subredditname = readline(commandline, "r/")
+                    subreddit = reddit.get_subreddit(subredditname)
                     refreshneeded = True
                     break
                 else:
                     pass
-            elif mode == "command":
-                if char == ord("\n"):
-                    break
-                else:
-                    inputlist.append(chr(char))
-        if mode == "command":
-            inputstr = "".join(inputlist)
-            if inputstr == "q":
-                cursesexit()
-            elif inputstr == "refresh":
-                subs = refreshsubs(sorting, timeframe, limit)
-            commandline.erase()
+            if mode == "command":
+                inputstr = readline(commandline, "").strip()
+                if inputstr == "q":
+                    cursesexit()
+                elif inputstr == "refresh":
+                    subs = refreshsubs(sorting, timeframe, limit)
+                commandline.erase()
+                mode = "normal"
     except KeyboardInterrupt:
         cursesexit()
 #   elif command == "p":
