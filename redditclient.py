@@ -40,6 +40,7 @@ def cursesinit():
     curses.cbreak()
     screen.keypad(False)
     curses.start_color()
+    
 
 def cursesexit():
     curses.nocbreak()
@@ -91,13 +92,6 @@ def ansilen(text):
     return length
 
 
-def ansi(code, text):
-    """
-    Return an ANSI SGR code, using the code and the text.
-    """
-    return "\x1b[{}m{}\x1b[m".format(code, text)
-
-
 def filtercomment(comment):
     """
     Given a Comment object, if this function returns False the comment will
@@ -119,9 +113,10 @@ def printsubmission(sub, index, stdscr):
     stdscr.addstr("\n")
 
     stdscr.addstr("(")
-    stdscr.addstr(str(sub.ups), curses.COLOR_RED)
+    stdscr.addstr(str(sub.ups))
+
     stdscr.addstr("|")
-    stdscr.addstr(str(sub.downs), curses.COLOR_BLUE)
+    stdscr.addstr(str(sub.downs))
     stdscr.addstr(")")
     stdscr.addstr(" submitted by ")
     stdscr.addstr(str(sub.author))
@@ -391,9 +386,12 @@ while True:
         mode = "normal"
         inputlist = []
         while True:
-            if mode == "normal": curses.noecho()
-            else: curses.echo()
+            if mode == "normal":
+                curses.noecho()
+            else:
+                curses.echo()
             char = commandline.getch()
+            commandline.refresh()
             if mode == "normal":
                 if char == ord("j"):
                     if line + (height ) >= limit * 3:
@@ -430,6 +428,7 @@ while True:
                     break
                 else:
                     inputlist.append(chr(char))
+        if mode == "command":
             inputstr = "".join(inputlist)
             if inputstr == "q":
                 cursesexit()
