@@ -361,6 +361,7 @@ while True:
     if refreshneeded:
         commandline.clear()
         commandline.addstr("-- loading /r/{} --".format(str(subreddit)), curses.A_BOLD)
+        line = 0
         commandline.refresh()
         listingpad = curses.newpad(limit*3+1, width)
         subs = refreshsubs(sorting, timeframe, limit)
