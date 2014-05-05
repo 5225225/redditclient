@@ -28,6 +28,8 @@ def cursesexit():
     curses.endwin()
     quit()
 
+
+
 def uniq(inputlist):
     seen = set()
     seen_add = seen.add
@@ -67,7 +69,7 @@ def filtercomment(comment):
 
 
 def printsubmission(sub, index, stdscr):
-    stdscr.addstr(str(index), curses.A_UNDERLINE)
+    stdscr.addstr(str(index), curses.A_BOLD)
     stdscr.addstr(": ")
     title = sub.title
     if len(str(index)) + 2 + len(sub.title) > width:
@@ -76,22 +78,23 @@ def printsubmission(sub, index, stdscr):
     stdscr.addstr("\n")
 
     stdscr.addstr("(")
-    stdscr.addstr(str(sub.ups))
+    stdscr.addstr(str(sub.ups), colours.red)
 
     stdscr.addstr("|")
-    stdscr.addstr(str(sub.downs))
+    stdscr.addstr(str(sub.downs), colours.blue)
     stdscr.addstr(")")
     stdscr.addstr(" submitted by ")
     stdscr.addstr(str(sub.author))
     if subreddit.display_name == "all":
         stdscr.addstr(" to ")
         stdscr.addstr(sub.subreddit.display_name, curses.A_UNDERLINE)
-    stdscr.addstr(" " + sub.domain, curses.COLOR_YELLOW)
+    stdscr.addstr(" " + sub.domain, colours.yellow)
     stdscr.addstr("\n\n")
 
 
 def updatestatusbar(screen):
-    screen.addstr(0, 0, "I would put something here")
+    screen.addstr(0,0,"asdf asdf adsf")
+
 
 def parsecomments(comments, indentlevel=0):
     out = []
@@ -322,6 +325,16 @@ except praw.errors.InvalidUserPass:
     sys.exit(1)
 
 cursesinit()
+
+class colours:
+    red = curses.color_pair(1)
+    green = curses.color_pair(2)
+    yellow = curses.color_pair(3)
+    blue = curses.color_pair(4)
+
+for x in range(0,255):
+    curses.init_pair(x+1, x+1, 0)
+
 # Once I get to this point, I can assume that the user is logged in.
 # This client can't be used without a reddit account
 
@@ -398,6 +411,11 @@ while True:
                     cursesexit()
                 elif inputstr == "refresh":
                     subs = refreshsubs(sorting, timeframe, limit)
+                elif inputstr == "showcolours":
+                    listingpad.clear()
+                    for colour in range(0,256):
+                        curses.init_pair(colour+1, colour, 0)
+                        listingpad.addstr("Colour: {}\n".format(colour) ,curses.color_pair(colour+1))
                 commandline.erase()
                 mode = "normal"
     except KeyboardInterrupt:
