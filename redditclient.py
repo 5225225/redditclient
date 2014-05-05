@@ -385,7 +385,6 @@ while True:
                     break
                 elif char == ord(":"):
                     mode = "command"
-                    commandline.addch(":")
                 elif char == ord("r"):
                     subredditname = readline(commandline, "r/")
                     subreddit = reddit.get_subreddit(subredditname)
@@ -394,7 +393,7 @@ while True:
                 else:
                     pass
             if mode == "command":
-                inputstr = readline(commandline, "").strip()
+                inputstr = readline(commandline, ":").strip()
                 if inputstr == "q":
                     cursesexit()
                 elif inputstr == "refresh":
