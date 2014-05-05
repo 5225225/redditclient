@@ -11,27 +11,6 @@ import requests
 
 import curses
 import curses.ascii
-class escape:
-    reset = 0
-    bold = 1
-    underline = 4
-    blink = 5
-
-
-class colour:
-    black = 30
-    red = 31
-    green = 32
-    yellow = 33
-    blue = 34
-    cyan = 36
-
-    bg_red = 41
-    bg_green = 42
-    bg_yellow = 43
-    bg_blue = 45
-    bg_cyan = 46
-    bg_white = 47
 
 tags = {}
 
@@ -74,22 +53,6 @@ def extracturls(url):
     matches = matches[:len(matches)//2]
     # Imgur returns thumbnails, which we don't want.
     return matches
-
-
-def ansilen(text):
-    """
-    Return the length of a string, taking into account ANSI escape codes
-    """
-    length = 0
-    ignore = False
-    for letter in text:
-        if letter == "\x1b":
-            ignore = True
-        if not ignore:
-            length = length + 1
-        if ignore and letter == "m":
-            ignore = False
-    return length
 
 
 def filtercomment(comment):
