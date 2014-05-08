@@ -109,58 +109,27 @@ def parsecomments(comments, indentlevel=0):
     return out
 
 
-def formatcomment(subauthor, comment, index, indent):
-    index = ansi(escape.bold, index)
-
-    if subauthor == str(comment.author):
-        author = ansi(colour.cyan, ansi(escape.bold, comment.author))
-    else:
-        author = comment.author
-
-    upvotes = ansi(colour.red, comment.ups)
-    downvotes = ansi(colour.blue, comment.downs)
-    body = str("\n  ").join(textwrap.wrap(
-        comment.body,
-        width - (len(indent) + 2)))
-
-    full = "{}: {} ({}|{})\n  {}\n".format(
-        index,
-        author,
-        upvotes,
-        downvotes,
-        body,
-        )
-
-    return full
-
-
-def viewcomments(sub):
+def viewcomments(sub, scr):
     sub.replace_more_comments(limit=4, threshold=0)
-    screen.addstr("Parsing comments...")
     comments = parsecomments(sub.comments)
-    outfile = open("comments", "w")
 
-    screen.addstr("Preparing to write comments...")
-    towrite = [sub.title, ""]
+    scr.clear()
+
+    scr.addstr(sub.title + "\n")
 
     if sub.is_self and sub.selftext != "":
-        towrite.append(termdown(sub.selftext))
-        towrite.append("")
+        scr.addstr(termdown(sub.selftext)+"\n")
+        scr.addstr("\n")
 
-    x = str(sub.author)
-
+    scr.clear()
     for index, item in enumerate(comments):
         indent = " "*(4 * item[0])
-        screen.addstr("Formatting comment {} out of {}".format(index+1, len(comments)))
-        for line in formatcomment(x, item[1], index, indent).split("\n"):
-            towrite.append(indent + termdown(line))
-
-    screen.addstr("Writing comments...")
-    outfile.write("\n".join(towrite))
-    outfile.close()
-
-    screen.addstr("Opening comments...")
-    callprogram("less -R comments")
+        commenttext = textwrap.fill(item[1].body, width=width, initial_indent=indent, subsequent_indent=indent)
+        scr.addstr(indent + str(item[1].author), colours.yellow)
+        scr.addstr("\n")
+        scr.addstr(commenttext)
+        scr.addstr("\n\n")
+    commandline.clear()
 
 
 def gettags(x, tag):
@@ -191,6 +160,7 @@ def termdown(body):
     # a format that can bre read in the terminal
     # gettags does not handle something like this
     # gettags(**hello** *world*, *) properly, do the longest ones first.
+    return body
 
     bodytext = []
     for line in body.split("\n"):
@@ -297,6 +267,7 @@ def readline(screen, prompt):
     return "".join(output)
     curses.noecho()
 
+
 if sys.version[0] != "3":
     sys.stderr.write("You don't seem to be using python version 3\n")
     sys.exit(0)
@@ -343,7 +314,6 @@ sorting = "hot"
 timeframe = ""
 subheight = 3
 
-viewmode = "normal"
 searchterm = ""
 
 width = curses.COLS
@@ -354,6 +324,8 @@ commandline = curses.newwin(1, curses.COLS, curses.LINES-1, 0)
 line = 0
 limit = 100
 refreshneeded = True
+mode = "normal"
+viewing = "subs"
 while True:
     posts = {}
     usableheight = height - 2
@@ -363,17 +335,16 @@ while True:
         commandline.addstr("-- loading /r/{} --".format(str(subreddit)), curses.A_BOLD)
         line = 0
         commandline.refresh()
-        listingpad = curses.newpad(limit*3+1, width)
+        content = curses.newpad(5000, width)
         subs = refreshsubs(sorting, timeframe, limit)
         for index, sub in enumerate(subs):
-            printsubmission(sub, index, listingpad)
+            printsubmission(sub, index, content)
             posts[index] = sub
         refreshneeded = False
         commandline.clear()
-#    screen.move(height-1, 0)
     updatestatusbar(statusscreen)
     statusscreen.refresh()
-    listingpad.refresh(line, 0, 1,0, height-2, width)
+    content.refresh(line, 0, 1,0, height-2, width)
     commandline.refresh()
     #Time to add VIM modes!
     # My goal is to allow for things like <count>operator, 5j for example.
@@ -397,6 +368,11 @@ while True:
                     else:
                         line -= 3
                     break
+                elif char == ord("c"):
+                    subindex = readline(commandline,"index:")
+                    submission = posts[int(subindex)]
+                    viewcomments(submission, content)
+                    content.refresh(line, 0, 1,0, height-2, width)
                 elif char == ord(":"):
                     mode = "command"
                 elif char == ord("r"):
@@ -413,59 +389,11 @@ while True:
                 elif inputstr == "refresh":
                     subs = refreshsubs(sorting, timeframe, limit)
                 elif inputstr == "showcolours":
-                    listingpad.clear()
+                    content.clear()
                     for colour in range(0,256):
                         curses.init_pair(colour+1, colour, 0)
-                        listingpad.addstr("Colour: {}\n".format(colour) ,curses.color_pair(colour+1))
+                        content.addstr("Colour: {}\n".format(colour) ,curses.color_pair(colour+1))
                 commandline.erase()
                 mode = "normal"
     except KeyboardInterrupt:
         cursesexit()
-#   elif command == "p":
-#       subfile = open("/tmp/selfpost", "w")
-#       contents = """<Replace this line with the post title>
-
-#rite your post here"""
-#       subfile.write(contents)
-#       subfile.close()
-#       callprogram("vim /tmp/selfpost")
-#       body = open("/tmp/selfpost").read().split("\n")
-#       title = body[0].strip()
-#       content = "\n".join(body[2:])
-#       reddit.submit(subreddit, title, content)
-#   elif command.startswith("r"):
-#       subreddit = reddit.get_subreddit(command[1:], fetch=True)
-#       
-
-#   elif command.startswith("o"):
-#       post = posts[int(command[2:])]
-#       if command[1] == "c":
-#           screen.addstr("Loading comments...\n")
-#           sub = posts[int(command[2:])]
-#           viewcomments(sub)
-#       elif command[1] == "i":
-#           callprogram("feh -F {}".format(post.url))
-#       elif command[1] == "l":
-#           if "i.imgur.com" in post.url:
-#               callprogram("feh -F {}".format(post.url))
-#           if "imgur.com" in post.url:
-#               urls = extracturls(post.url)
-#               callprogram("feh -F {}".format(" ".join(urls)))
-#           elif "youtube.com" in post.url:
-#               callprogram("vlc -f {}".format(post.url))
-#           else:
-#               callprogram("w3m {}".format(post.url))
-#   elif command == "desc":
-#       outfile = open("sidebar", "w")
-#       sidebar = termdown(subreddit.description)
-#       outfile.write(sidebar)
-#       outfile.close()
-#       callprogram("less -R sidebar")
-#   elif command.startswith("/"):
-#       searchterm = command[1:]
-#       viewmode = "search"
-#   elif command == "pdbstart":
-#       import pdb
-#       pdb.set_trace()
-#   elif command in ["q", "quit"]:
-#       sys.exit(0)
