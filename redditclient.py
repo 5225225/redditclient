@@ -193,47 +193,56 @@ def termdown(body):
 
 
 def refreshsubs(subreddit, sorting, timeframe, limit):
+    global subs
+
+    log("called refreshsubs({}, {}, {}, {})".format(subreddit, sorting, timeframe, limit))
     if sorting == "hot":
-        subs = subreddit.get_hot(limit=limit)
+        toset = subreddit.get_hot(limit=limit)
 
     elif sorting == "controversial":
         if timeframe == "":
-            subs = subreddit.get_controversial(limit=limit)
+            toset = subreddit.get_controversial(limit=limit)
         elif timeframe == "hour":
-            subs = subreddit.get_controversial_from_hour(limit=limit)
+            toset = subreddit.get_controversial_from_hour(limit=limit)
         elif timeframe == "day":
-            subs = subreddit.get_controversial_from_day(limit=limit)
+            toset = subreddit.get_controversial_from_day(limit=limit)
         elif timeframe == "week":
-            subs = subreddit.get_controversial_from_week(limit=limit)
+            toset = subreddit.get_controversial_from_week(limit=limit)
         elif timeframe == "month":
-            subs = subreddit.get_controversial_from_month(limit=limit)
+            toset = subreddit.get_controversial_from_month(limit=limit)
         elif timeframe == "year":
-            subs = subreddit.get_controversial_from_year(limit=limit)
+            toset = subreddit.get_controversial_from_year(limit=limit)
         elif timeframe == "all":
-            subs = subreddit.get_controversial_from_all(limit=limit)
+            toset = subreddit.get_controversial_from_all(limit=limit)
     elif sorting == "new":
-        subs = subreddit.get_new(limit=limit)
+        toset = subreddit.get_new(limit=limit)
 
     elif sorting == "rising":
-        subs = subreddit.get_rising(limit=limit)
+        toset = subreddit.get_rising(limit=limit)
 
     elif sorting == "top":
         if timeframe == "":
-            subs = subreddit.get_top(limit=limit)
+            toset = subreddit.get_top(limit=limit)
         elif timeframe == "hour":
-            subs = subreddit.get_top_from_hour(limit=limit)
+            toset = subreddit.get_top_from_hour(limit=limit)
         elif timeframe == "day":
-            subs = subreddit.get_top_from_day(limit=limit)
+            toset = subreddit.get_top_from_day(limit=limit)
         elif timeframe == "week":
-            subs = subreddit.get_top_from_week(limit=limit)
+            toset = subreddit.get_top_from_week(limit=limit)
         elif timeframe == "month":
-            subs = subreddit.get_top_from_month(limit=limit)
+            toset = subreddit.get_top_from_month(limit=limit)
         elif timeframe == "year":
-            subs = subreddit.get_top_from_year(limit=limit)
+            toset = subreddit.get_top_from_year(limit=limit)
         elif timeframe == "all":
-            subs = subreddit.get_top_from_all(limit=limit)
+            toset = subreddit.get_top_from_all(limit=limit)
 
-    return subs
+    subs = toset
+
+def log(msg):
+    with open("logfile", "a") as f:
+        f.write("[{}]".format(time.time()))
+        f.write(msg)
+        f.write("\n")
 
 
 def readline(screen, prompt):
@@ -289,7 +298,6 @@ except praw.errors.InvalidUserPass:
     sys.exit(1)
 
 
-
 def main(screen):
     global width
     global height
@@ -338,10 +346,9 @@ def main(screen):
             line = 0
             commandline.refresh()
             if refreshneeded:
-                subs = refreshsubs(subreddit, sorting, timeframe, limit)
+                refreshsubs(subreddit, sorting, timeframe, limit)
             content = curses.newpad(5000, width)
-            with open("out.log", "a") as f:
-                f.write(str(len(list(subs))))
+            log("Length of subs is {}".format(len(list(subs))))
             for index, sub in enumerate(subs):
                 if index == selection:
                     printsubmission(subreddit, sub, index, content, True)
@@ -355,7 +362,7 @@ def main(screen):
         statusscreen.refresh()
         content.refresh(line, 0, 1, 0, height-2, width)
         commandline.refresh()
-        #Time to add VIM modes!
+        # Time to add VIM modes!
         # My goal is to allow for things like <count>operator, 5j for example.
         # I'll do that after I get the basics down, though.
         try:
@@ -403,7 +410,7 @@ def main(screen):
                             refreshneeded = True
                             break
                     elif inputstr == "refresh":
-                        subs = refreshsubs(
+                        refreshsubs(
                             subreddit,
                             sorting,
                             timeframe,
