@@ -15,26 +15,12 @@ import curses.ascii
 tags = {}
 
 
-def cursesinit():
-    stdscr = curses.initscr()
-    curses.noecho()
-    curses.cbreak()
-    curses.start_color()
-    
-
-def cursesexit():
-    curses.nocbreak()
-    curses.echo()
-    curses.endwin()
-    quit()
-
-
-
 def uniq(inputlist):
     seen = set()
     seen_add = seen.add
     return [x for x in inputlist if x not in seen and not seen_add(x)]
     # top answer on https://stackoverflow.com/questions/480214/
+
 
 def callprogram(program):
     subprocess.call(program, shell=True)
@@ -68,13 +54,16 @@ def filtercomment(comment):
     return True
 
 
-def printsubmission(sub, index, stdscr):
+def printsubmission(subreddit, sub, index, stdscr, selected):
     stdscr.addstr(str(index), curses.A_BOLD)
     stdscr.addstr(": ")
     title = sub.title
-    if len(str(index)) + 2 + len(sub.title) > width:
+    if len(str(index)) + 2 + len(sub.title) >= width:
         title = title[:width - (len(str(index)) + 3)]
-    stdscr.addstr(title)
+    if selected:
+        stdscr.addstr(title, curses.A_BOLD)
+    else:
+        stdscr.addstr(title)
     stdscr.addstr("\n")
 
     stdscr.addstr("(")
@@ -87,13 +76,13 @@ def printsubmission(sub, index, stdscr):
     stdscr.addstr(str(sub.author))
     if subreddit.display_name == "all":
         stdscr.addstr(" to ")
-        stdscr.addstr(sub.subreddit.display_name, curses.A_UNDERLINE)
+        stdscr.addstr(sub.subreddit.display_name, colours.yellow)
     stdscr.addstr(" " + sub.domain, colours.yellow)
     stdscr.addstr("\n\n")
 
 
 def updatestatusbar(screen):
-    screen.addstr(0,0,"asdf asdf adsf")
+    screen.addstr(0, 0, "asdf asdf adsf")
 
 
 def parsecomments(comments, indentlevel=0):
@@ -109,33 +98,34 @@ def parsecomments(comments, indentlevel=0):
     return out
 
 
-def viewcomments(sub, scr):
-    sub.replace_more_comments(limit=4, threshold=0)
-    comments = parsecomments(sub.comments)
+def viewcomments(submission, scr):
+    comments = parsecomments(submission.comments)
 
     scr.clear()
 
-    scr.addstr(sub.title + "\n")
+    scr.addstr(submission.title + "\n")
 
-    if sub.is_self and sub.selftext != "":
-        scr.addstr(termdown(sub.selftext)+"\n")
+    if submission.is_self and submission.selftext != "":
+        scr.addstr(termdown(submission.selftext)+"\n")
         scr.addstr("\n")
 
     scr.clear()
     for index, item in enumerate(comments):
         indent = " "*(4 * item[0])
-        commenttext = textwrap.fill(item[1].body, width=width, initial_indent=indent, subsequent_indent=indent)
+        commenttext = textwrap.fill(
+            item[1].body,
+            width=width,
+            initial_indent=indent,
+            subsequent_indent=indent)
         scr.addstr(indent + str(item[1].author), colours.yellow)
         scr.addstr("\n")
         scr.addstr(commenttext)
         scr.addstr("\n\n")
-    commandline.clear()
 
 
 def gettags(x, tag):
     """
     Return a list of all pairs of the tag string in x.
-
     The output is in the format of [[start, end],..]
     The start/end is the entire string, including the tags.
     """
@@ -201,7 +191,8 @@ def termdown(body):
     body = body.replace("&gt;", ">")
     return body
 
-def refreshsubs(sorting, timeframe, limit):
+
+def refreshsubs(subreddit, sorting, timeframe, limit):
     if sorting == "hot":
         subs = subreddit.get_hot(limit=limit)
 
@@ -241,7 +232,9 @@ def refreshsubs(sorting, timeframe, limit):
             subs = subreddit.get_top_from_year(limit=limit)
         elif timeframe == "all":
             subs = subreddit.get_top_from_all(limit=limit)
+
     return subs
+
 
 def readline(screen, prompt):
     output = ""
@@ -295,105 +288,136 @@ except praw.errors.InvalidUserPass:
     screen.addstr("Invalid username or password")
     sys.exit(1)
 
-cursesinit()
 
-class colours:
-    red = curses.color_pair(1)
-    green = curses.color_pair(2)
-    yellow = curses.color_pair(3)
-    blue = curses.color_pair(4)
 
-for x in range(0,255):
-    curses.init_pair(x+1, x+1, 0)
+def main(screen):
+    global width
+    global height
+    # TODO pass the screen width/height or use curses.cols/curses.rows
+    global colours
+    selection = 4
 
-# Once I get to this point, I can assume that the user is logged in.
-# This client can't be used without a reddit account
+    class colours:
+        red = curses.color_pair(1)
+        green = curses.color_pair(2)
+        yellow = curses.color_pair(3)
+        blue = curses.color_pair(4)
 
-subreddit = reddit.get_subreddit("python")
-sorting = "hot"
-timeframe = ""
-subheight = 3
+    for x in range(0, 255):
+        curses.init_pair(x+1, x+1, 0)
 
-searchterm = ""
+    # Once I get to this point, I can assume that the user is logged in.
+    # This client can't be used without a reddit account
 
-width = curses.COLS
-height = curses.LINES 
+    subreddit = reddit.get_subreddit("python")
+    sorting = "hot"
+    timeframe = ""
+    subheight = 3
 
-statusscreen = curses.newwin(1, curses.COLS, 0, 0)
-commandline = curses.newwin(1, curses.COLS, curses.LINES-1, 0)
-line = 0
-limit = 100
-refreshneeded = True
-mode = "normal"
-viewing = "subs"
-while True:
-    posts = {}
-    usableheight = height - 2
-    # One for the top status bar, and one for the command line at the bottom.
-    if refreshneeded:
-        commandline.clear()
-        commandline.addstr("-- loading /r/{} --".format(str(subreddit)), curses.A_BOLD)
-        line = 0
-        commandline.refresh()
-        content = curses.newpad(5000, width)
-        subs = refreshsubs(sorting, timeframe, limit)
-        for index, sub in enumerate(subs):
-            printsubmission(sub, index, content)
-            posts[index] = sub
-        refreshneeded = False
-        commandline.clear()
-    updatestatusbar(statusscreen)
-    statusscreen.refresh()
-    content.refresh(line, 0, 1,0, height-2, width)
-    commandline.refresh()
-    #Time to add VIM modes!
-    # My goal is to allow for things like <count>operator, 5j for example.
-    # I'll do that after I get the basics down, though.
-    try:
-        mode = "normal"
-        inputlist = []
-        while True:
-            if mode == "normal":
-                char = commandline.getch()
-                commandline.refresh()
-                if char == ord("j"):
-                    if line + (height ) >= limit * 3:
-                        pass
-                    else:
-                        line += 3
-                    break
-                elif char == ord("k"):
-                    if line == 0:
-                        pass
-                    else:
-                        line -= 3
-                    break
-                elif char == ord("c"):
-                    subindex = readline(commandline,"index:")
-                    submission = posts[int(subindex)]
-                    viewcomments(submission, content)
-                    content.refresh(line, 0, 1,0, height-2, width)
-                elif char == ord(":"):
-                    mode = "command"
-                elif char == ord("r"):
-                    subredditname = readline(commandline, "r/")
-                    subreddit = reddit.get_subreddit(subredditname)
-                    refreshneeded = True
-                    break
+    searchterm = ""
+
+    width = curses.COLS
+    height = curses.LINES
+
+    statusscreen = curses.newwin(1, curses.COLS, 0, 0)
+    commandline = curses.newwin(1, curses.COLS, curses.LINES-1, 0)
+    line = 0
+    limit = 100
+    refreshneeded = True
+    mode = "normal"
+    viewing = "subs"
+    while True:
+        posts = {}
+        usableheight = height - 2
+        # Reserve space for the status line and the command line
+        if (refreshneeded or redrawneeded) and viewing == "subs":
+            commandline.clear()
+            commandline.addstr(
+                "-- loading /r/{} --".format(str(subreddit)),
+                curses.A_BOLD)
+            line = 0
+            commandline.refresh()
+            if refreshneeded:
+                subs = refreshsubs(subreddit, sorting, timeframe, limit)
+            content = curses.newpad(5000, width)
+            with open("out.log", "a") as f:
+                f.write(str(len(list(subs))))
+            for index, sub in enumerate(subs):
+                if index == selection:
+                    printsubmission(subreddit, sub, index, content, True)
                 else:
-                    pass
-            if mode == "command":
-                inputstr = readline(commandline, ":").strip()
-                if inputstr == "q":
-                    cursesexit()
-                elif inputstr == "refresh":
-                    subs = refreshsubs(sorting, timeframe, limit)
-                elif inputstr == "showcolours":
-                    content.clear()
-                    for colour in range(0,256):
-                        curses.init_pair(colour+1, colour, 0)
-                        content.addstr("Colour: {}\n".format(colour) ,curses.color_pair(colour+1))
-                commandline.erase()
-                mode = "normal"
-    except KeyboardInterrupt:
-        cursesexit()
+                    printsubmission(subreddit, sub, index, content, False)
+                posts[index] = sub
+            refreshneeded = False
+            redrawneeded = False
+            commandline.clear()
+        updatestatusbar(statusscreen)
+        statusscreen.refresh()
+        content.refresh(line, 0, 1, 0, height-2, width)
+        commandline.refresh()
+        #Time to add VIM modes!
+        # My goal is to allow for things like <count>operator, 5j for example.
+        # I'll do that after I get the basics down, though.
+        try:
+            mode = "normal"
+            inputlist = []
+            while True:
+                if mode == "normal":
+                    char = commandline.getch()
+                    commandline.refresh()
+                    if char == ord("j"):
+                        if selection < 100:
+                            selection = selection + 1
+                            redrawneeded = True
+                        break
+
+                    elif char == ord("k"):
+                        if selection > 1:
+                            selection = selection - 1
+                            redrawneeded = True
+                        break
+
+                    elif char == ord(":"):
+                        mode = "command"
+
+                    elif char == ord("r"):
+                        subredditname = readline(commandline, "r/")
+                        subreddit = reddit.get_subreddit(subredditname)
+                        refreshneeded = True
+                        break
+
+                    elif char == ord("\n"):
+                        viewcomments(posts[selection], content)
+                        commandline.clear()
+                        content.refresh(line, 0, 1, 0, height-2, width)
+                        viewing = "comments"
+                    else:
+                        pass
+                if mode == "command":
+                    inputstr = readline(commandline, ":").strip()
+                    if inputstr == "q":
+                        if viewing == "subs":
+                            sys.exit()
+                        elif viewing == "comments":
+                            viewing = "subs"
+                            refreshneeded = True
+                            break
+                    elif inputstr == "refresh":
+                        subs = refreshsubs(
+                            subreddit,
+                            sorting,
+                            timeframe,
+                            limit)
+                    elif inputstr == "showcolours":
+                        content.clear()
+                        for colour in range(0, 256):
+                            curses.init_pair(colour+1, colour, 0)
+                            content.addstr(
+                                "Colour: {}\n".format(colour),
+                                curses.color_pair(colour+1))
+                    commandline.erase()
+                    mode = "normal"
+        except KeyboardInterrupt:
+            sys.exit()
+
+curses.wrapper(main)
