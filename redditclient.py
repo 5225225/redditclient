@@ -195,7 +195,6 @@ def termdown(body):
 def refreshsubs(subreddit, sorting, timeframe, limit):
     global subs
 
-    log("called refreshsubs({}, {}, {}, {})".format(subreddit, sorting, timeframe, limit))
     if sorting == "hot":
         toset = subreddit.get_hot(limit=limit)
 
@@ -236,7 +235,8 @@ def refreshsubs(subreddit, sorting, timeframe, limit):
         elif timeframe == "all":
             toset = subreddit.get_top_from_all(limit=limit)
 
-    subs = toset
+    subs = list(toset)
+
 
 def log(msg):
     with open("logfile", "a") as f:
@@ -358,10 +358,11 @@ def main(screen):
             refreshneeded = False
             redrawneeded = False
             commandline.clear()
-        updatestatusbar(statusscreen)
-        statusscreen.refresh()
-        content.refresh(line, 0, 1, 0, height-2, width)
-        commandline.refresh()
+            updatestatusbar(statusscreen)
+            statusscreen.refresh()
+            content.refresh(line, 0, 1, 0, height-2, width)
+            commandline.refresh()
+            log("Just refreshed the content")
         # Time to add VIM modes!
         # My goal is to allow for things like <count>operator, 5j for example.
         # I'll do that after I get the basics down, though.
@@ -410,11 +411,8 @@ def main(screen):
                             refreshneeded = True
                             break
                     elif inputstr == "refresh":
-                        refreshsubs(
-                            subreddit,
-                            sorting,
-                            timeframe,
-                            limit)
+                        refreshneeded = True
+                        break
                     elif inputstr == "showcolours":
                         content.clear()
                         for colour in range(0, 256):
