@@ -276,15 +276,11 @@ if sys.version[0] != "3":
 
 reddit = praw.Reddit(user_agent="command line reddit client by /u/5225225")
 
-if len(sys.argv) == 1:
-    username = input("Enter username: ")
-    password = promptpassword("Enter password: ")
-elif len(sys.argv) == 2:
-    username = sys.argv[1]
-    password = promptpassword("Enter password: ")
-else:
+if len(sys.argv) >= 3:
     username = sys.argv[1]
     password = sys.argv[2]
+else:
+    screen.addstr("Invalid username or password")
 
 if username == "" or password == "":
     screen.addstr("Invalid username or password")
@@ -329,11 +325,14 @@ def main(screen):
 
     statusscreen = curses.newwin(1, curses.COLS, 0, 0)
     commandline = curses.newwin(1, curses.COLS, curses.LINES-1, 0)
-    line = 0
     limit = 100
     refreshneeded = True
     mode = "normal"
     viewing = "subs"
+    line = 0
+
+    oldselection = 0
+    content = curses.newpad(5000, width)
     while True:
         posts = {}
         usableheight = height - 2
@@ -343,24 +342,42 @@ def main(screen):
             commandline.addstr(
                 "-- loading /r/{} --".format(str(subreddit)),
                 curses.A_BOLD)
-            line = 0
             commandline.refresh()
             if refreshneeded:
                 refreshsubs(subreddit, sorting, timeframe, limit)
-            content = curses.newpad(5000, width)
             log("Length of subs is {}".format(len(list(subs))))
+            content.move(0, 0)
             for index, sub in enumerate(subs):
                 if index == selection:
                     printsubmission(subreddit, sub, index, content, True)
                 else:
                     printsubmission(subreddit, sub, index, content, False)
                 posts[index] = sub
-            refreshneeded = False
-            redrawneeded = False
             commandline.clear()
             updatestatusbar(statusscreen)
             statusscreen.refresh()
-            content.refresh(line, 0, 1, 0, height-2, width)
+            if refreshneeded:
+                log("Did a full refresh")
+                content.refresh(line, 0, 1, 0, height-2, width)
+            else:
+                log("Did a partial refresh")
+                content.refresh(
+                    selection*subheight,
+                    0,
+                    selection*subheight+1-line,
+                    0,
+                    selection*subheight+1-line,
+                    width)
+
+                content.refresh(
+                    oldselection*subheight,
+                    0,
+                    oldselection*subheight+1-line,
+                    0,
+                    oldselection*subheight+1-line,
+                    width)
+            refreshneeded = False
+            redrawneeded = False
             commandline.refresh()
             log("Just refreshed the content")
         # Time to add VIM modes!
@@ -374,14 +391,20 @@ def main(screen):
                     char = commandline.getch()
                     commandline.refresh()
                     if char == ord("j"):
-                        if selection < 100:
+                        if selection < 99:
+                            oldselection = selection
                             selection = selection + 1
+                            if selection * subheight + 2 > line + curses.LINES:
+                                line = line + 3
                             redrawneeded = True
                         break
 
                     elif char == ord("k"):
-                        if selection > 1:
+                        if selection > 0:
+                            oldselection = selection
                             selection = selection - 1
+                            if selection * subheight + 2 < line:
+                                line = line - 3
                             redrawneeded = True
                         break
 
