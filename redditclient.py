@@ -327,6 +327,7 @@ def main(screen):
     commandline = curses.newwin(1, curses.COLS, curses.LINES-1, 0)
     limit = 100
     refreshneeded = True
+    selectionchanged = False
     mode = "normal"
     viewing = "subs"
     line = 0
@@ -337,30 +338,39 @@ def main(screen):
         posts = {}
         usableheight = height - 2
         # Reserve space for the status line and the command line
-        if (refreshneeded or redrawneeded) and viewing == "subs":
-            commandline.clear()
-            commandline.addstr(
-                "-- loading /r/{} --".format(str(subreddit)),
-                curses.A_BOLD)
-            commandline.noutrefresh()
-            if refreshneeded:
-                refreshsubs(subreddit, sorting, timeframe, limit)
-            log("Length of subs is {}".format(len(list(subs))))
-            content.move(0, 0)
-            for index, sub in enumerate(subs):
-                if index == selection:
-                    printsubmission(subreddit, sub, index, content, True)
-                else:
-                    printsubmission(subreddit, sub, index, content, False)
-                posts[index] = sub
-            commandline.clear()
-            updatestatusbar(statusscreen)
-            statusscreen.noutrefresh()
+        if (refreshneeded or redrawneeded or selectionchanged) and viewing == "subs":
+            if not selectionchanged:
+                commandline.clear()
+                commandline.addstr(
+                    "-- loading /r/{} --".format(str(subreddit)),
+                    curses.A_BOLD)
+                commandline.noutrefresh()
+                if refreshneeded:
+                    refreshsubs(subreddit, sorting, timeframe, limit)
+                log("Length of subs is {}".format(len(list(subs))))
+                content.move(0, 0)
+                for index, sub in enumerate(subs):
+                    if index == selection:
+                        printsubmission(subreddit, sub, index, content, True)
+                    else:
+                        printsubmission(subreddit, sub, index, content, False)
+                    posts[index] = sub
+                commandline.clear()
+                updatestatusbar(statusscreen)
+                statusscreen.noutrefresh()
+            else:
+                content.move(oldselection*subheight, 0)
+                printsubmission(subreddit, subs[oldselection], oldselection, content, False)
+
+                content.move(selection*subheight, 0)
+                printsubmission(subreddit, subs[selection], selection, content, True)
             if refreshneeded:
                 log("Did a full refresh")
                 content.noutrefresh(line, 0, 1, 0, height-2, width)
             else:
                 log("Did a partial refresh")
+                content.noutrefresh(line, 0, 1, 0, height-2, width)
+
                 content.noutrefresh(
                     selection*subheight,
                     0,
@@ -379,6 +389,7 @@ def main(screen):
             curses.doupdate()
             refreshneeded = False
             redrawneeded = False
+            selectionchanged = False;
             commandline.refresh()
             log("Just refreshed the content")
         # Time to add VIM modes!
@@ -396,8 +407,10 @@ def main(screen):
                             oldselection = selection
                             selection = selection + 1
                             if selection * subheight + 2 > line + curses.LINES:
-                                line = line + 3
-                            redrawneeded = True
+                                line = line + 3 * 5
+                                redrawneeded = True
+                            else:
+                                selectionchanged = True
                         break
 
                     elif char == ord("k"):
@@ -405,8 +418,10 @@ def main(screen):
                             oldselection = selection
                             selection = selection - 1
                             if selection * subheight + 2 < line:
-                                line = line - 3
-                            redrawneeded = True
+                                line = line - 3 * 5
+                                redrawneeded = True
+                            else:
+                                selectionchanged = True
                         break
 
                     elif char == ord(":"):
