@@ -342,7 +342,7 @@ def main(screen):
             commandline.addstr(
                 "-- loading /r/{} --".format(str(subreddit)),
                 curses.A_BOLD)
-            commandline.refresh()
+            commandline.noutrefresh()
             if refreshneeded:
                 refreshsubs(subreddit, sorting, timeframe, limit)
             log("Length of subs is {}".format(len(list(subs))))
@@ -355,13 +355,13 @@ def main(screen):
                 posts[index] = sub
             commandline.clear()
             updatestatusbar(statusscreen)
-            statusscreen.refresh()
+            statusscreen.noutrefresh()
             if refreshneeded:
                 log("Did a full refresh")
-                content.refresh(line, 0, 1, 0, height-2, width)
+                content.noutrefresh(line, 0, 1, 0, height-2, width)
             else:
                 log("Did a partial refresh")
-                content.refresh(
+                content.noutrefresh(
                     selection*subheight,
                     0,
                     selection*subheight+1-line,
@@ -369,13 +369,14 @@ def main(screen):
                     selection*subheight+1-line,
                     width)
 
-                content.refresh(
+                content.noutrefresh(
                     oldselection*subheight,
                     0,
                     oldselection*subheight+1-line,
                     0,
                     oldselection*subheight+1-line,
                     width)
+            curses.doupdate()
             refreshneeded = False
             redrawneeded = False
             commandline.refresh()
